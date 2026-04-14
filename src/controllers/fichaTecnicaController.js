@@ -2,7 +2,7 @@ import FichaTecnica from "../models/FichaTecnica.js";
 import Insumo from "../models/Insumo.js";
 import Produto from "../models/Produto.js";
 
-// 🔥 FUNÇÃO AUXILIAR (reaproveita lógica)
+// função auxiliar (reaproveita lógica)
 const calcularCustoTotal = async (ingredientes) => {
     const insumos = await Insumo.find({
         _id: { $in: ingredientes.map(i => i.insumo) }
@@ -26,13 +26,15 @@ const calcularCustoTotal = async (ingredientes) => {
             throw new Error("Quantidade inválida");
         }
 
-        custoTotal += insumo.custo * item.quantidade;
+        const custoReal = insumo.custo / insumo.rendimento;
+
+        custoTotal += custoReal * item.quantidade;
     }
 
     return Number(custoTotal.toFixed(2));
 };
 
-// 🔥 VALIDAR INGREDIENTES
+// validar ingredientes
 const validarIngredientes = (ingredientes) => {
     if (!Array.isArray(ingredientes) || ingredientes.length === 0) {
         return "Ingredientes inválidos";
@@ -90,20 +92,44 @@ export const listarFichas = async (req, res) => {
             .populate("ingredientes.insumo");
 
         const resultado = fichas.map(ficha => {
-            const preco = ficha.produto?.preco || 0;
-            const custo = ficha.custoTotal;
+        const preco = ficha.produto?.preco || 0;
+        const custo = ficha.custoTotal;
 
-            const lucro = preco - custo;
-            const margem = preco > 0
-                ? (lucro / preco) * 100
-                : 0;
+        const lucro = preco - custo;
+        const margem = preco > 0
+            ? (lucro / preco) * 100
+            : 0;
+
+        // detalhamento dos ingredientes
+        const ingredientesDetalhados = ficha.ingredientes.map(item => {
+            const insumo = item.insumo;
+
+            if (!insumo) return null;
+
+            const custoReal = insumo.custo / insumo.rendimento;
+            const custoItem = custoReal * item.quantidade;
 
             return {
-                ...ficha.toObject(),
-                lucro: Number(lucro.toFixed(2)),
-                margem: Number(margem.toFixed(2))
+                nome: insumo.nome,
+                quantidade: item.quantidade,
+                unidade: insumo.unidade,
+                custoUnitario: insumo.custo,
+                rendimento: insumo.rendimento,
+                custoReal: Number(custoReal.toFixed(2)),
+                custoItem: Number(custoItem.toFixed(2))
             };
-        });
+        }).filter(i => i !== null);
+
+        return {
+            _id: ficha._id,
+            produto: ficha.produto?.nome,
+            precoVenda: preco,
+            custoTotal: custo,
+            lucro: Number(lucro.toFixed(2)),
+            margem: Number(margem.toFixed(2)),
+            ingredientes: ingredientesDetalhados
+        };
+    });
 
         res.json(resultado);
 

@@ -1,70 +1,91 @@
 import Insumo from "../models/Insumo.js";
 import FichaTecnica from "../models/FichaTecnica.js";
 
-// Criar
+// criar insumo
 export const criarInsumo = async (req, res) => {
     try {
-        const { nome, unidade, custo } = req.body;
+        const { nome, unidade, custo, rendimento } = req.body;
 
-        if (custo == null || typeof custo !== "number") {
+        if (!nome || !unidade || custo == null) {
+            return res.status(400).json({
+                message: "Nome, unidade e custo são obrigatórios"
+            });
+        }
+
+        if (typeof custo !== "number") {
             return res.status(400).json({
                 message: "Custo inválido"
             });
         }
 
-        if (!nome || !unidade || !custo) {
-            return res.status(400).json({ message: "Todos os campos são obrigatórios" });
-        }
-
-        const insumo = await Insumo.create({ nome, unidade, custo });
+        const insumo = await Insumo.create({
+            nome,
+            unidade,
+            custo,
+            rendimento: rendimento ?? 1
+        });
 
         res.status(201).json(insumo);
+
     } catch (error) {
+        console.error(error);
         res.status(500).json({ error: error.message });
     }
 };
 
-// Listar
+// listar insumo
 export const listarInsumos = async (req, res) => {
     try {
         const insumos = await Insumo.find();
         res.json(insumos);
     } catch (error) {
+        console.error(error);
         res.status(500).json({ error: error.message });
     }
 };
 
-// Buscar por ID
+// buscar insumo
 export const buscarInsumo = async (req, res) => {
     try {
         const insumo = await Insumo.findById(req.params.id);
 
         if (!insumo) {
-            return res.status(404).json({ message: "Insumo não encontrado" });
+            return res.status(404).json({
+                message: "Insumo não encontrado"
+            });
         }
 
         res.json(insumo);
+
     } catch (error) {
+        console.error(error);
         res.status(500).json({ error: error.message });
     }
 };
 
-// Atualizar
+// update insumo
 export const atualizarInsumo = async (req, res) => {
     try {
-        const { nome, unidade, custo } = req.body;
+        const { nome, unidade, custo, rendimento } = req.body;
 
         const insumo = await Insumo.findByIdAndUpdate(
             req.params.id,
-            { nome, unidade, custo },
+            {
+                nome,
+                unidade,
+                custo,
+                rendimento: rendimento ?? 1
+            },
             { new: true }
         );
 
         if (!insumo) {
-            return res.status(404).json({ message: "Insumo não encontrado" });
+            return res.status(404).json({
+                message: "Insumo não encontrado"
+            });
         }
 
-        // REPROCESSAR FICHAS QUE USAM ESSE INSUMO
+        // processar ficha
         const fichas = await FichaTecnica.find({
             "ingredientes.insumo": insumo._id
         });
@@ -76,7 +97,10 @@ export const atualizarInsumo = async (req, res) => {
                 const insumoAtual = await Insumo.findById(item.insumo);
 
                 if (insumoAtual) {
-                    novoCusto += insumoAtual.custo * item.quantidade;
+                    const custoReal =
+                        insumoAtual.custo / (insumoAtual.rendimento || 1);
+
+                    novoCusto += custoReal * item.quantidade;
                 }
             }
 
@@ -90,16 +114,21 @@ export const atualizarInsumo = async (req, res) => {
         });
 
     } catch (error) {
+        console.error(error);
         res.status(500).json({ error: error.message });
     }
 };
 
-// Deletar
+// deletar insumo
 export const deletarInsumo = async (req, res) => {
     try {
-        const existe = await FichaTecnica.findOne({
+        console.log("Tentando deletar:", req.params.id);
+
+        const existe = await FichaTecnica.exists({
             "ingredientes.insumo": req.params.id
         });
+
+        console.log("Existe ficha usando?", existe);
 
         if (existe) {
             return res.status(400).json({
@@ -109,13 +138,20 @@ export const deletarInsumo = async (req, res) => {
 
         const insumo = await Insumo.findByIdAndDelete(req.params.id);
 
+        console.log("Resultado delete:", insumo);
+
         if (!insumo) {
-            return res.status(404).json({ message: "Insumo não encontrado" });
+            return res.status(404).json({
+                message: "Insumo não encontrado"
+            });
         }
 
-        res.json({ message: "Insumo deletado com sucesso" });
+        res.json({
+            message: "Insumo deletado com sucesso"
+        });
 
     } catch (error) {
+        console.error("ERRO REAL:", error);
         res.status(500).json({ error: error.message });
     }
 };

@@ -13,6 +13,10 @@ const insumoSchema = new mongoose.Schema({
     custo: {
         type: Number,
         required: true // custo por unidade (ex: 1kg = 40 reais)
+    },
+    rendimento: {
+        type: Number,
+        default: 1
     }
 }, {
     timestamps: true
