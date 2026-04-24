@@ -2,7 +2,9 @@ import FichaTecnica from "../models/FichaTecnica.js";
 import Insumo from "../models/Insumo.js";
 import Produto from "../models/Produto.js";
 
-// função auxiliar (reaproveita lógica)
+// =======================
+// CALCULAR CUSTO
+// =======================
 const calcularCustoTotal = async (ingredientes) => {
     const insumos = await Insumo.find({
         _id: { $in: ingredientes.map(i => i.insumo) }
@@ -13,7 +15,7 @@ const calcularCustoTotal = async (ingredientes) => {
         mapa[i._id] = i;
     });
 
-    let custoTotal = 0;
+    let total = 0;
 
     for (let item of ingredientes) {
         const insumo = mapa[item.insumo];
@@ -22,114 +24,92 @@ const calcularCustoTotal = async (ingredientes) => {
             throw new Error("Insumo não encontrado");
         }
 
-        if (typeof item.quantidade !== "number" || item.quantidade <= 0) {
-            throw new Error("Quantidade inválida");
-        }
-
-        const custoReal = insumo.custo / insumo.rendimento;
-
-        custoTotal += custoReal * item.quantidade;
+        total += insumo.valorUnitario * item.quantidade;
     }
 
-    return Number(custoTotal.toFixed(2));
+    return Number(total.toFixed(2));
 };
 
-// validar ingredientes
-const validarIngredientes = (ingredientes) => {
-    if (!Array.isArray(ingredientes) || ingredientes.length === 0) {
-        return "Ingredientes inválidos";
-    }
-
-    const ids = ingredientes.map(i => i.insumo);
-    const repetidos = ids.filter((id, i) => ids.indexOf(id) !== i);
-
-    if (repetidos.length > 0) {
-        return "Insumos duplicados na ficha";
-    }
-
-    return null;
-};
-
-// criar ficha
+// =======================
+// CRIAR FICHA + PRODUTO
+// =======================
 export const criarFicha = async (req, res) => {
     try {
-        const { produto, ingredientes } = req.body;
+        const { nomeProduto, categoria, ingredientes, precoVenda } = req.body;
 
-        if (!produto || !Array.isArray(ingredientes) || ingredientes.length === 0) {
-            return res.status(400).json({ message: "Dados inválidos" });
+        if (!nomeProduto || !categoria || !ingredientes?.length) {
+            return res.status(400).json({
+                message: "Dados inválidos"
+            });
         }
 
-        const erroIngredientes = validarIngredientes(ingredientes);
-        if (erroIngredientes) {
-            return res.status(400).json({ message: erroIngredientes });
-        }
-
-        const produtoExiste = await Produto.findById(produto);
-        if (!produtoExiste) {
-            return res.status(404).json({ message: "Produto não encontrado" });
-        }
-
+        // calcular custo
         const custoTotal = await calcularCustoTotal(ingredientes);
 
+        // criar produto automaticamente
+        const produto = await Produto.create({
+            nome: nomeProduto,
+            categoria,
+            preco: precoVenda || 0
+        });
+
+        // calcular CMV
+        const preco = precoVenda || 0;
+        const cmv = preco > 0 ? (custoTotal / preco) * 100 : 0;
+
+        // criar ficha
         const ficha = await FichaTecnica.create({
-            produto,
+            produto: produto._id,
             ingredientes,
             custoTotal
         });
 
-        res.status(201).json(ficha);
+        res.status(201).json({
+            message: "Ficha criada com sucesso",
+            produto,
+            ficha,
+            custoTotal,
+            cmv: Number(cmv.toFixed(2))
+        });
 
     } catch (error) {
+        console.error(error);
         res.status(500).json({ error: error.message });
     }
 };
 
-// listar fichas
+// =======================
+// LISTAR FICHAS
+// =======================
 export const listarFichas = async (req, res) => {
     try {
         const fichas = await FichaTecnica.find()
             .populate("produto")
             .populate("ingredientes.insumo");
 
-        const resultado = fichas.map(ficha => {
-        const preco = ficha.produto?.preco || 0;
-        const custo = ficha.custoTotal;
+        const resultado = fichas.map(f => {
+            const preco = f.produto?.preco || 0;
+            const custo = f.custoTotal;
 
-        const lucro = preco - custo;
-        const margem = preco > 0
-            ? (lucro / preco) * 100
-            : 0;
-
-        // detalhamento dos ingredientes
-        const ingredientesDetalhados = ficha.ingredientes.map(item => {
-            const insumo = item.insumo;
-
-            if (!insumo) return null;
-
-            const custoReal = insumo.custo / insumo.rendimento;
-            const custoItem = custoReal * item.quantidade;
+            const lucro = preco - custo;
+            const cmv = preco > 0 ? (custo / preco) * 100 : 0;
 
             return {
-                nome: insumo.nome,
-                quantidade: item.quantidade,
-                unidade: insumo.unidade,
-                custoUnitario: insumo.custo,
-                rendimento: insumo.rendimento,
-                custoReal: Number(custoReal.toFixed(2)),
-                custoItem: Number(custoItem.toFixed(2))
-            };
-        }).filter(i => i !== null);
+                _id: f._id,
+                produto: f.produto?.nome,
+                categoria: f.produto?.categoria,
+                precoVenda: preco,
+                custoTotal: custo,
+                lucro: Number(lucro.toFixed(2)),
+                cmv: Number(cmv.toFixed(2)),
 
-        return {
-            _id: ficha._id,
-            produto: ficha.produto?.nome,
-            precoVenda: preco,
-            custoTotal: custo,
-            lucro: Number(lucro.toFixed(2)),
-            margem: Number(margem.toFixed(2)),
-            ingredientes: ingredientesDetalhados
-        };
-    });
+                ingredientes: f.ingredientes.map(i => ({
+                    nome: i.insumo?.nome,
+                    quantidade: i.quantidade,
+                    unidade: i.insumo?.unidade
+                }))
+            };
+        });
 
         res.json(resultado);
 
@@ -138,88 +118,27 @@ export const listarFichas = async (req, res) => {
     }
 };
 
-// buscar ficha por id
-export const buscarFicha = async (req, res) => {
-    try {
-        const ficha = await FichaTecnica.findById(req.params.id)
-            .populate("produto")
-            .populate("ingredientes.insumo");
-
-        if (!ficha) {
-            return res.status(404).json({ message: "Ficha não encontrada" });
-        }
-
-        const preco = ficha.produto?.preco || 0;
-        const custo = ficha.custoTotal;
-
-        const lucro = preco - custo;
-        const margem = preco > 0
-            ? (lucro / preco) * 100
-            : 0;
-
-        res.json({
-            ...ficha.toObject(),
-            lucro: Number(lucro.toFixed(2)),
-            margem: Number(margem.toFixed(2))
-        });
-
-    } catch (error) {
-        res.status(500).json({ error: error.message });
-    }
-};
-
-// atualizar ficha
-export const atualizarFicha = async (req, res) => {
-    try {
-        const { produto, ingredientes } = req.body;
-
-        if (!produto || !Array.isArray(ingredientes) || ingredientes.length === 0) {
-            return res.status(400).json({ message: "Dados inválidos" });
-        }
-
-        const erroIngredientes = validarIngredientes(ingredientes);
-        if (erroIngredientes) {
-            return res.status(400).json({ message: erroIngredientes });
-        }
-
-        const produtoExiste = await Produto.findById(produto);
-        if (!produtoExiste) {
-            return res.status(404).json({ message: "Produto não encontrado" });
-        }
-
-        const custoTotal = await calcularCustoTotal(ingredientes);
-
-        const ficha = await FichaTecnica.findByIdAndUpdate(
-            req.params.id,
-            {
-                produto,
-                ingredientes,
-                custoTotal
-            },
-            { returnDocument: "after" }
-        );
-
-        if (!ficha) {
-            return res.status(404).json({ message: "Ficha não encontrada" });
-        }
-
-        res.json(ficha);
-
-    } catch (error) {
-        res.status(500).json({ error: error.message });
-    }
-};
-
-// deletar ficha
+// =======================
+// DELETAR FICHA + PRODUTO
+// =======================
 export const deletarFicha = async (req, res) => {
     try {
-        const ficha = await FichaTecnica.findByIdAndDelete(req.params.id);
+        const ficha = await FichaTecnica.findById(req.params.id);
 
         if (!ficha) {
-            return res.status(404).json({ message: "Ficha não encontrada" });
+            return res.status(404).json({
+                message: "Ficha não encontrada"
+            });
         }
 
-        res.json({ message: "Ficha deletada com sucesso" });
+        // deletar produto junto
+        await Produto.findByIdAndDelete(ficha.produto);
+
+        await ficha.deleteOne();
+
+        res.json({
+            message: "Ficha e produto deletados"
+        });
 
     } catch (error) {
         res.status(500).json({ error: error.message });

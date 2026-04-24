@@ -1,11 +1,12 @@
 import mongoose from "mongoose";
 
-const fichaTecnicaSchema = new mongoose.Schema({
+const fichaSchema = new mongoose.Schema({
     produto: {
         type: mongoose.Schema.Types.ObjectId,
         ref: "Produto",
         required: true
     },
+
     ingredientes: [
         {
             insumo: {
@@ -19,12 +20,12 @@ const fichaTecnicaSchema = new mongoose.Schema({
             }
         }
     ],
+
     custoTotal: {
         type: Number,
         default: 0
-    }   
-}, {
-    timestamps: true
-});
+    }
 
-export default mongoose.model("FichaTecnica", fichaTecnicaSchema);
+}, { timestamps: true });
+
+export default mongoose.model("FichaTecnica", fichaSchema);

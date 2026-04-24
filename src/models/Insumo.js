@@ -1,25 +1,37 @@
 import mongoose from "mongoose";
 
 const insumoSchema = new mongoose.Schema({
-    nome: {
+    nome: String,
+    categoria: String,
+    unidade: String,
+
+    fornecedor: {
+        type: String
+    },
+
+    qtdBruta: Number,
+    qtdLiquida: Number,
+
+    rendimento: Number,
+    rendimentoPercentual: Number,
+
+    valorTotal: Number,
+    valorUnitario: Number,
+
+    tipo: {
         type: String,
-        required: true,
-        trim: true
+        enum: ["base", "processado"],
+        default: "base"
     },
-    unidade: {
-        type: String,
-        required: true // kg, g, litro, unidade
-    },
-    custo: {
-        type: Number,
-        required: true // custo por unidade (ex: 1kg = 40 reais)
-    },
-    rendimento: {
-        type: Number,
-        default: 1
+
+    origem: {
+        insumoPai: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: "Insumo"
+        },
+        quantidadeUsada: Number
     }
-}, {
-    timestamps: true
-});
+
+}, { timestamps: true });
 
 export default mongoose.model("Insumo", insumoSchema);
