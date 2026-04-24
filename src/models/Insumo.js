@@ -1,13 +1,16 @@
 import mongoose from "mongoose";
 
 const insumoSchema = new mongoose.Schema({
-    nome: String,
+    nome: {
+        type: String,
+        required: true,
+        unique: true // 🔥 nome único
+    },
+
     categoria: String,
     unidade: String,
 
-    fornecedor: {
-        type: String
-    },
+    fornecedor: String,
 
     qtdBruta: Number,
     qtdLiquida: Number,
