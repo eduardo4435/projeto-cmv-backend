@@ -1,0 +1,54 @@
+{
+  "name": "sr-petisco-backend",
+  "version": "1.0.0",
+  "description": "API multiempresa para gestão de insumos, fichas técnicas e CMV.",
+  "main": "src/server.js",
+  "private": true,
+  "type": "module",
+  "imports": {
+    "#shared/*": "./src/shared/*",
+    "#modules/*": "./src/modules/*",
+    "#domain/*": "./src/domain/*"
+  },
+  "scripts": {
+    "dev": "nodemon src/server.js",
+    "start": "node src/server.js",
+    "import:insumos": "node src/scripts/importar-insumos.js",
+    "test": "node --test",
+    "test:coverage": "node --test --experimental-test-coverage",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "format": "prettier --write \"src/**/*.js\" \"tests/**/*.js\" \"eslint.config.js\"",
+    "format:check": "prettier --check \"src/**/*.js\" \"tests/**/*.js\" \"eslint.config.js\"",
+    "check": "npm run lint && npm run format:check && npm test"
+  },
+  "keywords": [
+    "cmv",
+    "ficha-tecnica",
+    "express",
+    "mongodb"
+  ],
+  "author": "",
+  "license": "ISC",
+  "engines": {
+    "node": ">=22.13.0"
+  },
+  "dependencies": {
+    "bcryptjs": "^3.0.3",
+    "cors": "^2.8.6",
+    "dotenv": "^17.4.1",
+    "express": "^5.2.1",
+    "express-rate-limit": "^8.6.2",
+    "helmet": "^8.3.0",
+    "jsonwebtoken": "^9.0.3",
+    "mongoose": "^9.4.1",
+    "xlsx": "^0.18.5"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "eslint": "^10.9.1",
+    "globals": "^17.11.0",
+    "nodemon": "^3.1.14",
+    "prettier": "^3.9.6"
+  }
+}
