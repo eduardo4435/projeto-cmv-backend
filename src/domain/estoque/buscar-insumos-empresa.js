@@ -27,7 +27,5 @@ export const buscarInsumosEmpresa = async ({
         throw new AppError(mensagemNaoEncontrado, 404);
     }
 
-    return new Map(
-        insumos.map((insumo) => [insumo._id.toString(), insumo])
-    );
+    return new Map(insumos.map((insumo) => [insumo._id.toString(), insumo]));
 };

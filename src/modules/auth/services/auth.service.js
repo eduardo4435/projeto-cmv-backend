@@ -9,36 +9,25 @@ import { generateToken } from "#shared/utils/generate-token.js";
 import AppError from "#shared/errors/AppError.js";
 
 import { executarTransacao } from "#shared/database/executar-transacao.js";
+import { permissoesDoCargo } from "#shared/auth/permissoes.js";
 
 export const register = async (dados) => {
     // criptografa senha
     const senhaHash = await hashPassword(dados.senha);
 
     const { empresa, usuario } = await executarTransacao(async (sessao) => {
-        // procura empresa existente
-        let empresaEncontrada = await Empresa.findOne({
+        // O cadastro público só cria empresas novas. Funcionários são criados por um usuário autorizado.
+        const empresaEncontrada = await Empresa.findOne({
             cnpj: dados.cnpj,
         }).session(sessao);
 
-        // cria empresa se não existir
-        if (!empresaEncontrada) {
-            [empresaEncontrada] = await Empresa.create(
-                [
-                    {
-                        nome: dados.empresa,
-                        cnpj: dados.cnpj,
-                    },
-                ],
-                { session: sessao }
-            );
+        if (empresaEncontrada) {
+            throw new AppError("Empresa já cadastrada. Peça acesso ao responsável.", 409);
         }
 
-        // primeiro usuário vira admin
-        const quantidadeUsuarios = await Usuario.countDocuments({
-            empresaId: empresaEncontrada._id,
-        }).session(sessao);
-
-        const cargo = quantidadeUsuarios === 0 ? "admin" : "funcionario";
+        const [novaEmpresa] = await Empresa.create([{ nome: dados.empresa, cnpj: dados.cnpj }], {
+            session: sessao,
+        });
 
         const [usuarioCriado] = await Usuario.create(
             [
@@ -46,15 +35,15 @@ export const register = async (dados) => {
                     nome: dados.nome,
                     email: dados.email,
                     senha: senhaHash,
-                    cargo,
-                    empresaId: empresaEncontrada._id,
+                    cargo: "admin",
+                    empresaId: novaEmpresa._id,
                 },
             ],
             { session: sessao }
         );
 
         return {
-            empresa: empresaEncontrada,
+            empresa: novaEmpresa,
             usuario: usuarioCriado,
         };
     });
@@ -68,6 +57,8 @@ export const register = async (dados) => {
             nome: usuario.nome,
             email: usuario.email,
             cargo: usuario.cargo,
+            ativo: usuario.ativo,
+            permissoes: permissoesDoCargo(usuario.cargo),
 
             empresa: {
                 id: empresa._id,
@@ -92,6 +83,10 @@ export const login = async ({ email, senha }) => {
         throw new AppError("Email ou senha inválidos", 401);
     }
 
+    if (usuario.ativo === false || !usuario.empresaId || usuario.empresaId.status === "inativa") {
+        throw new AppError("Acesso desativado. Procure o responsável.", 403);
+    }
+
     const token = generateToken(usuario);
 
     return {
@@ -100,6 +95,8 @@ export const login = async ({ email, senha }) => {
             nome: usuario.nome,
             email: usuario.email,
             cargo: usuario.cargo,
+            ativo: usuario.ativo,
+            permissoes: permissoesDoCargo(usuario.cargo),
 
             empresa: {
                 id: usuario.empresaId._id,

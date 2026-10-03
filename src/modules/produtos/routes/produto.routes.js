@@ -16,14 +16,14 @@ import authorize from "#shared/middlewares/authorize.middleware.js";
 
 const router = express.Router();
 
-router.post("/", authMiddleware, authorize("admin"), asyncHandler(criarProduto));
+router.post("/", authMiddleware, authorize("catalogo:gerir"), asyncHandler(criarProduto));
 
-router.get("/", authMiddleware, asyncHandler(listarProdutos));
+router.get("/", authMiddleware, authorize("catalogo:ler"), asyncHandler(listarProdutos));
 
-router.get("/:id", authMiddleware, asyncHandler(buscarProduto));
+router.get("/:id", authMiddleware, authorize("catalogo:ler"), asyncHandler(buscarProduto));
 
-router.put("/:id", authMiddleware, authorize("admin"), asyncHandler(atualizarProduto));
+router.put("/:id", authMiddleware, authorize("catalogo:gerir"), asyncHandler(atualizarProduto));
 
-router.delete("/:id", authMiddleware, authorize("admin"), asyncHandler(deletarProduto));
+router.delete("/:id", authMiddleware, authorize("catalogo:gerir"), asyncHandler(deletarProduto));
 
 export default router;

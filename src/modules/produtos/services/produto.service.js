@@ -41,7 +41,7 @@ export const criarProdutoService = async ({ nome, preco, estoque, categoria }, e
 };
 
 // listar produtos
-export const listarProdutosService = async (empresaId, opcoes = { paginado: false }) => {
+export const listarProdutosService = async (empresaId, opcoes = { paginado: false }, incluirCustos = true) => {
     const filtro = { empresaId };
 
     if (opcoes.search) {
@@ -72,6 +72,14 @@ export const listarProdutosService = async (empresaId, opcoes = { paginado: fals
     }
 
     const produtos = consultaProdutos;
+    if (!incluirCustos) {
+        return {
+            data: produtos.map(({ _id, nome, categoria, preco }) => ({ _id, nome, categoria, preco })),
+            ...(opcoes.paginado && {
+                pagination: criarMetadadosPaginacao({ page: opcoes.page, limit: opcoes.limit, total }),
+            }),
+        };
+    }
     const produtoIds = produtos.map((produto) => produto._id);
 
     const fichas = await FichaTecnica.find({

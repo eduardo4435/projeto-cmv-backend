@@ -9,6 +9,6 @@ export const calcularMetricas = (preco, custo) => {
     return {
         lucro: round(lucro),
         cmv: round(cmv),
-        margem: round(margem)
+        margem: round(margem),
     };
 };

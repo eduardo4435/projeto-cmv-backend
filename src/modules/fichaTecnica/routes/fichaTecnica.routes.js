@@ -5,6 +5,8 @@ import {
     listarFichas,
     deletarFicha,
     buscarFichaPorProduto,
+    consultarFichas,
+    buscarFichaConsultaPorProduto,
 } from "../controllers/fichaTecnica.controller.js";
 
 import authMiddleware from "#shared/middlewares/auth.middleware.js";
@@ -15,12 +17,26 @@ import authorize from "#shared/middlewares/authorize.middleware.js";
 
 const router = express.Router();
 
-router.post("/", authMiddleware, authorize("admin"), asyncHandler(criarFicha));
+router.post("/", authMiddleware, authorize("cmv:gerir"), asyncHandler(criarFicha));
 
-router.get("/", authMiddleware, asyncHandler(listarFichas));
+router.get("/", authMiddleware, authorize("cmv:ler"), asyncHandler(listarFichas));
 
-router.get("/produto/:id", authMiddleware, asyncHandler(buscarFichaPorProduto));
+router.get("/consulta", authMiddleware, authorize("fichas:consultar"), asyncHandler(consultarFichas));
 
-router.delete("/:id", authMiddleware, authorize("admin"), asyncHandler(deletarFicha));
+router.get(
+    "/consulta/produto/:id",
+    authMiddleware,
+    authorize("fichas:consultar"),
+    asyncHandler(buscarFichaConsultaPorProduto)
+);
+
+router.get(
+    "/produto/:id",
+    authMiddleware,
+    authorize("cmv:ler"),
+    asyncHandler(buscarFichaPorProduto)
+);
+
+router.delete("/:id", authMiddleware, authorize("cmv:gerir"), asyncHandler(deletarFicha));
 
 export default router;

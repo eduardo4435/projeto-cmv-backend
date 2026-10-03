@@ -63,10 +63,7 @@ export function converterParaBase(unidade, quantidade, pesoUnitario = null) {
     const peso = Number(pesoUnitario);
 
     if (!Number.isFinite(peso) || peso <= 0) {
-        throw new AppError(
-            "Peso unitário inválido para conversão.",
-            400
-        );
+        throw new AppError("Peso unitário inválido para conversão.", 400);
     }
 
     return valor * peso;
@@ -111,9 +108,7 @@ export function converterQuantidadeInsumoParaBase(quantidade, insumo) {
 
 export function converterQuantidadeInsumoParaExibicao(quantidade, insumo) {
     const unidadeBase =
-        insumo?.unidade === "un" &&
-        Number(insumo?.pesoUnitario) > 0 &&
-        insumo?.unidadePesoUnitario
+        insumo?.unidade === "un" && Number(insumo?.pesoUnitario) > 0 && insumo?.unidadePesoUnitario
             ? insumo.unidadePesoUnitario
             : insumo?.unidade;
 

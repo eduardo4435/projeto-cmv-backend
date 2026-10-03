@@ -1,7 +1,9 @@
 import AppError from "#shared/errors/AppError.js";
+import { exigirSenhaNumerica } from "#shared/validators/senha.validator.js";
+import { cargosAtribuiveis } from "#shared/auth/permissoes.js";
 
 export const validarCriarUsuario = (req, res, next) => {
-    const { nome, email, senha } = req.body;
+    const { nome, email, senha, cargo } = req.body;
 
     if (!nome) {
         throw new AppError("Nome é obrigatório", 400);
@@ -15,9 +17,7 @@ export const validarCriarUsuario = (req, res, next) => {
         throw new AppError("Senha é obrigatória", 400);
     }
 
-    if (typeof senha !== "string" || senha.length < 8) {
-        throw new AppError("Senha deve ter no mínimo 8 caracteres", 400);
-    }
+    exigirSenhaNumerica(senha);
 
     const emailNormalizado = String(email).trim().toLowerCase();
 
@@ -25,8 +25,8 @@ export const validarCriarUsuario = (req, res, next) => {
         throw new AppError("Email inválido", 400);
     }
 
-    if (req.body.cargo && !["admin", "funcionario"].includes(req.body.cargo)) {
-        throw new AppError("Cargo inválido", 400);
+    if (!cargo || !cargosAtribuiveis.includes(cargo)) {
+        throw new AppError("Escolha um cargo válido para o funcionário", 400);
     }
 
     req.body = {
@@ -39,14 +39,22 @@ export const validarCriarUsuario = (req, res, next) => {
 };
 
 export const validarAtualizarUsuario = (req, res, next) => {
-    const { nome, cargo } = req.body;
+    const { nome, cargo, ativo } = req.body;
 
-    if (!nome && !cargo) {
+    if (nome === undefined && cargo === undefined && ativo === undefined) {
         throw new AppError("Nenhum dado enviado", 400);
     }
 
-    if (cargo && !["admin", "funcionario"].includes(cargo)) {
+    if (cargo !== undefined && !cargosAtribuiveis.includes(cargo)) {
         throw new AppError("Cargo inválido", 400);
+    }
+
+    if (nome !== undefined && (typeof nome !== "string" || !nome.trim())) {
+        throw new AppError("Nome inválido", 400);
+    }
+
+    if (ativo !== undefined && typeof ativo !== "boolean") {
+        throw new AppError("Ativo deve ser verdadeiro ou falso", 400);
     }
 
     next();

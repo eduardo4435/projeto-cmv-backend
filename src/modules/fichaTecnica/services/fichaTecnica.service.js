@@ -190,6 +190,80 @@ export const listarFichasService = async (empresaId, opcoes = { paginado: false 
     };
 };
 
+// Usa projeções explícitas e monta uma resposta própria: a cozinha recebe apenas
+// receita e quantidade, sem custo, preço, métricas ou cadastro do fornecedor.
+function mapearFichaConsulta(ficha) {
+    return {
+        _id: ficha._id,
+        produto: ficha.produto?.nome || "Produto removido",
+        categoria: ficha.produto?.categoria || "",
+        ingredientes: ficha.ingredientes.map(({ insumo, quantidade }) => ({
+            nome: insumo?.nome || "Ingrediente removido",
+            quantidade: insumo
+                ? converterQuantidadeInsumoParaExibicao(quantidade, insumo)
+                : quantidade,
+            unidade: insumo ? obterUnidadeUsoInsumo(insumo) : "",
+        })),
+    };
+}
+
+export const consultarFichasService = async (empresaId, opcoes = { paginado: false }) => {
+    const filtro = { empresaId };
+    if (opcoes.search || (opcoes.categoria && opcoes.categoria !== "todas")) {
+        const filtroProduto = { empresaId };
+        if (opcoes.search) {
+            filtroProduto.nome = { $regex: escaparRegex(opcoes.search), $options: "i" };
+        }
+        if (opcoes.categoria && opcoes.categoria !== "todas") {
+            filtroProduto.categoria = opcoes.categoria;
+        }
+        const produtos = await Produto.find(filtroProduto).select("_id").lean();
+        filtro.produto = { $in: produtos.map((produto) => produto._id) };
+    }
+
+    let consulta = FichaTecnica.find(filtro).select("produto ingredientes");
+    const totalPromise = opcoes.paginado
+        ? FichaTecnica.countDocuments(filtro)
+        : Promise.resolve(undefined);
+    if (opcoes.paginado) {
+        consulta = consulta.sort({ createdAt: -1, _id: -1 }).skip(opcoes.skip).limit(opcoes.limit);
+    }
+    const [total, fichas] = await Promise.all([
+        totalPromise,
+        consulta
+            .populate({ path: "produto", select: "nome categoria" })
+            .populate({
+                path: "ingredientes.insumo",
+                select: "nome unidade pesoUnitario unidadePesoUnitario",
+            })
+            .lean(),
+    ]);
+
+    const data = fichas.map(mapearFichaConsulta);
+
+    return {
+        data,
+        ...(opcoes.paginado && {
+            pagination: criarMetadadosPaginacao({ page: opcoes.page, limit: opcoes.limit, total }),
+        }),
+    };
+};
+
+export const buscarFichaConsultaPorProdutoService = async (produtoId, empresaId) => {
+    validarObjectId(produtoId);
+    const ficha = await FichaTecnica.findOne({ produto: produtoId, empresaId })
+        .select("produto ingredientes")
+        .populate({ path: "produto", select: "nome categoria" })
+        .populate({
+            path: "ingredientes.insumo",
+            select: "nome unidade pesoUnitario unidadePesoUnitario",
+        })
+        .lean();
+
+    if (!ficha) throw new AppError("Ficha não encontrada", 404);
+    return mapearFichaConsulta(ficha);
+};
+
 // buscar
 export const buscarFichaPorProdutoService = async (produtoId, empresaId) => {
     validarObjectId(produtoId);

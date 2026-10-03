@@ -9,6 +9,6 @@ import authorize from "#shared/middlewares/authorize.middleware.js";
 
 const router = express.Router();
 
-router.post("/", authMiddleware, authorize("admin"), asyncHandler(criarTransformado));
+router.post("/", authMiddleware, authorize("cmv:gerir"), asyncHandler(criarTransformado));
 
 export default router;

@@ -1,6 +1,7 @@
 import Usuario from "../../usuarios/models/usuario.model.js";
 
 import AppError from "#shared/errors/AppError.js";
+import { exigirSenhaNumerica } from "#shared/validators/senha.validator.js";
 
 export const validarRegister = async (req, res, next) => {
     const { empresa, cnpj, nome, email, senha } = req.body;
@@ -25,9 +26,7 @@ export const validarRegister = async (req, res, next) => {
         throw new AppError("Senha é obrigatória", 400);
     }
 
-    if (typeof senha !== "string" || senha.length < 4) {
-        throw new AppError("Senha deve ter no mínimo 4 caracteres", 400);
-    }
+    exigirSenhaNumerica(senha);
 
     const emailNormalizado = String(email).trim().toLowerCase();
 
@@ -65,6 +64,7 @@ export const validarLogin = (req, res, next) => {
     if (!senha) {
         throw new AppError("Senha é obrigatória", 400);
     }
+    exigirSenhaNumerica(senha);
 
     req.body = {
         ...req.body,

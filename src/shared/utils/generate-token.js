@@ -6,7 +6,7 @@ export const generateToken = (usuario) => {
         {
             id: usuario._id,
             cargo: usuario.cargo,
-            empresaId: usuario.empresaId,
+            empresaId: String(usuario.empresaId?._id || usuario.empresaId),
         },
         env.jwtSecret,
         {

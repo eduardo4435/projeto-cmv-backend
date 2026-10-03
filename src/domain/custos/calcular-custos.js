@@ -24,9 +24,7 @@ export const calcularCusto = async ({
         .select("_id valorUnitario")
         .lean();
 
-    const mapaInsumos = new Map(
-        insumos.map((insumo) => [insumo._id.toString(), insumo])
-    );
+    const mapaInsumos = new Map(insumos.map((insumo) => [insumo._id.toString(), insumo]));
 
     let total = 0;
 

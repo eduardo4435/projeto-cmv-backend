@@ -1,4 +1,5 @@
 import mongoose from "mongoose";
+import { cargos } from "#shared/auth/permissoes.js";
 
 const usuarioSchema = new mongoose.Schema(
     {
@@ -24,8 +25,13 @@ const usuarioSchema = new mongoose.Schema(
 
         cargo: {
             type: String,
-            enum: ["admin", "funcionario"],
+            enum: cargos,
             default: "funcionario",
+        },
+
+        ativo: {
+            type: Boolean,
+            default: true,
         },
 
         empresaId: {

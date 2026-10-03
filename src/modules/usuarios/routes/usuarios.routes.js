@@ -5,6 +5,7 @@ import {
     criarUsuarioController,
     atualizarUsuarioController,
     deletarUsuarioController,
+    listarCargosController,
 } from "../controllers/usuario.controller.js";
 
 import { validarCriarUsuario, validarAtualizarUsuario } from "../validators/usuario.validator.js";
@@ -17,12 +18,14 @@ import asyncHandler from "#shared/middlewares/async-handler.js";
 
 const router = Router();
 
-router.get("/", authMiddleware, authorize("admin"), asyncHandler(listarUsuariosController));
+router.get("/cargos", authMiddleware, authorize("usuarios:ler"), listarCargosController);
+
+router.get("/", authMiddleware, authorize("usuarios:ler"), asyncHandler(listarUsuariosController));
 
 router.post(
     "/",
     authMiddleware,
-    authorize("admin"),
+    authorize("usuarios:gerir"),
     validarCriarUsuario,
     asyncHandler(criarUsuarioController)
 );
@@ -30,11 +33,16 @@ router.post(
 router.put(
     "/:id",
     authMiddleware,
-    authorize("admin"),
+    authorize("usuarios:gerir"),
     validarAtualizarUsuario,
     asyncHandler(atualizarUsuarioController)
 );
 
-router.delete("/:id", authMiddleware, authorize("admin"), asyncHandler(deletarUsuarioController));
+router.delete(
+    "/:id",
+    authMiddleware,
+    authorize("usuarios:gerir"),
+    asyncHandler(deletarUsuarioController)
+);
 
 export default router;

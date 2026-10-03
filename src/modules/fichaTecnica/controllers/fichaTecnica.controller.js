@@ -3,6 +3,8 @@ import {
     listarFichasService,
     buscarFichaPorProdutoService,
     deletarFichaService,
+    consultarFichasService,
+    buscarFichaConsultaPorProdutoService,
 } from "../services/fichaTecnica.service.js";
 import { obterOpcoesListagem } from "#shared/utils/paginacao.js";
 import { responderSucesso } from "#shared/http/resposta.js";
@@ -28,6 +30,23 @@ export const listarFichas = async (req, res) => {
         data: resultado.data,
         pagination: resultado.pagination,
     });
+};
+
+// Consulta operacional sem custos, preços ou dados de compra dos insumos.
+export const consultarFichas = async (req, res) => {
+    const resultado = await consultarFichasService(
+        req.usuario.empresaId,
+        obterOpcoesListagem(req.query)
+    );
+    return responderSucesso(res, {
+        data: resultado.data,
+        pagination: resultado.pagination,
+    });
+};
+
+export const buscarFichaConsultaPorProduto = async (req, res) => {
+    const data = await buscarFichaConsultaPorProdutoService(req.params.id, req.usuario.empresaId);
+    return responderSucesso(res, { data });
 };
 
 // buscar

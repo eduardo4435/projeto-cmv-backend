@@ -3,6 +3,7 @@ import Usuario from "../models/usuario.model.js";
 import { hashPassword } from "#shared/utils/hash-password.js";
 
 import AppError from "#shared/errors/AppError.js";
+import { cargosAtribuiveis } from "#shared/auth/permissoes.js";
 
 export const listarUsuarios = async (empresaId) => {
     return await Usuario.find({
@@ -12,10 +13,40 @@ export const listarUsuarios = async (empresaId) => {
         .sort({ createdAt: -1 });
 };
 
-export const criarUsuario = async (dados, empresaId) => {
+function validarGestao(ator, usuario, cargoNovo, ativoNovo) {
+    if (!["admin", "gerente"].includes(ator?.cargo)) {
+        throw new AppError("Acesso negado", 403);
+    }
+
+    if (cargoNovo !== undefined && !cargosAtribuiveis.includes(cargoNovo)) {
+        throw new AppError("O cargo informado não pode ser atribuído a um funcionário", 403);
+    }
+
+    if (usuario?.cargo === "admin") {
+        if ((cargoNovo !== undefined && cargoNovo !== "admin") || ativoNovo === false) {
+            throw new AppError(
+                "O administrador responsável não pode ser desativado ou ter o cargo alterado",
+                403
+            );
+        }
+    }
+
+    if (
+        ator.cargo === "gerente" &&
+        (usuario?.cargo === "admin" || usuario?.cargo === "gerente" || cargoNovo === "gerente")
+    ) {
+        throw new AppError("Gerente só pode gerir funcionários da equipe", 403);
+    }
+
+    if (usuario && String(usuario._id) === String(ator.id) && ativoNovo === false) {
+        throw new AppError("Você não pode desativar a própria conta", 403);
+    }
+}
+
+export const criarUsuario = async (dados, empresaId, ator) => {
+    validarGestao(ator, null, dados.cargo);
     const usuarioExiste = await Usuario.findOne({
         email: dados.email,
-        empresaId: empresaId,
     });
 
     if (usuarioExiste) {
@@ -29,7 +60,7 @@ export const criarUsuario = async (dados, empresaId) => {
         email: dados.email,
         senha: senhaHash,
 
-        cargo: dados.cargo || "funcionario",
+        cargo: dados.cargo,
 
         empresaId: empresaId,
     });
@@ -40,7 +71,7 @@ export const criarUsuario = async (dados, empresaId) => {
     return usuarioSeguro;
 };
 
-export const atualizarUsuario = async (id, dados, empresaId) => {
+export const atualizarUsuario = async (id, dados, empresaId, ator) => {
     const usuario = await Usuario.findOne({
         _id: id,
         empresaId: empresaId,
@@ -49,6 +80,8 @@ export const atualizarUsuario = async (id, dados, empresaId) => {
     if (!usuario) {
         throw new AppError("Usuário não encontrado", 404);
     }
+
+    validarGestao(ator, usuario, dados.cargo, dados.ativo);
 
     if (dados.nome) {
         usuario.nome = dados.nome;
@@ -58,12 +91,16 @@ export const atualizarUsuario = async (id, dados, empresaId) => {
         usuario.cargo = dados.cargo;
     }
 
+    if (dados.ativo !== undefined) {
+        usuario.ativo = dados.ativo;
+    }
+
     await usuario.save();
 
     return usuario;
 };
 
-export const deletarUsuario = async (id, empresaId) => {
+export const deletarUsuario = async (id, empresaId, ator) => {
     const usuario = await Usuario.findOne({
         _id: id,
         empresaId: empresaId,
@@ -73,5 +110,7 @@ export const deletarUsuario = async (id, empresaId) => {
         throw new AppError("Usuário não encontrado", 404);
     }
 
-    await usuario.deleteOne();
+    validarGestao(ator, usuario, undefined, false);
+    usuario.ativo = false;
+    await usuario.save();
 };

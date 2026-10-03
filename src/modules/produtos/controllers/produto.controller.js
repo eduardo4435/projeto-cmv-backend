@@ -7,6 +7,7 @@ import {
 } from "../services/produto.service.js";
 import { obterOpcoesListagem } from "#shared/utils/paginacao.js";
 import { responderSucesso } from "#shared/http/resposta.js";
+import { temPermissao } from "#shared/auth/permissoes.js";
 
 // criar
 export const criarProduto = async (req, res) => {
@@ -20,9 +21,11 @@ export const criarProduto = async (req, res) => {
 
 // listar
 export const listarProdutos = async (req, res) => {
+    const incluirCustos = temPermissao(req.usuario.cargo, "cmv:ler");
     const resultado = await listarProdutosService(
         req.usuario.empresaId,
-        obterOpcoesListagem(req.query)
+        obterOpcoesListagem(req.query),
+        incluirCustos
     );
 
     return responderSucesso(res, {
@@ -36,7 +39,9 @@ export const buscarProduto = async (req, res) => {
     const data = await buscarProdutoService(req.params.id, req.usuario.empresaId);
 
     return responderSucesso(res, {
-        data,
+        data: temPermissao(req.usuario.cargo, "cmv:ler")
+            ? data
+            : { _id: data._id, nome: data.nome, categoria: data.categoria, preco: data.preco },
     });
 };
 

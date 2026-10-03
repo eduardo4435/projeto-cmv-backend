@@ -102,12 +102,17 @@ Com exceção de cadastro, login e rota raiz, os endpoints exigem JWT:
 Authorization: Bearer SEU_TOKEN
 ```
 
-As operações de escrita são restritas ao cargo `admin`. Os cargos aceitos são:
+O cadastro público (`/auth/register`) cria **somente uma empresa nova e seu responsável `admin`**. Para uma empresa já cadastrada, o responsável ou gerente cria funcionários em `/usuarios`. O cargo deve ser informado no corpo do cadastro.
 
-- `admin`
-- `funcionario`
+| Cargo | Acesso nesta etapa |
+| --- | --- |
+| `admin` | Gerencia usuários, CMV e catálogo. É o responsável da empresa; não pode ser desativado por essas rotas. |
+| `gerente` | Gerencia CMV, catálogo e funcionários da equipe; não cria nem altera outro gerente ou administrador. |
+| `caixa`, `garcom` | Consultam produtos. As permissões operacionais do PDV serão conectadas em outra etapa. |
+| `cozinha` | Consulta produtos e suas fichas técnicas com ingredientes e quantidades, sem custos ou edição. |
+| `funcionario` | Cargo anterior, mantido somente para contas existentes: consulta CMV e produtos. Não aparece nas opções de novos cadastros. |
 
-Novas senhas precisam ter pelo menos 8 caracteres. O JWT expira em 7 dias por padrão, configurável por `JWT_EXPIRES_IN`.
+As permissões são verificadas nas rotas, não apenas na interface. O servidor consulta o usuário atual no banco em cada chamada autenticada, então a desativação ou mudança de cargo passa a valer mesmo para um JWT emitido antes da alteração. `DELETE /usuarios/:id` desativa a conta sem apagar seu registro; `PUT` com `ativo: true` pode reativá-la. O JWT expira em 7 dias por padrão, configurável por `JWT_EXPIRES_IN`. As senhas devem conter somente números e ter no mínimo 4 dígitos. Guarde-as como texto para preservar zeros à esquerda.
 
 ## Respostas
 
@@ -150,8 +155,9 @@ Listagem paginada:
 
 | Método | Rota | Descrição |
 | --- | --- | --- |
-| `POST` | `/auth/register` | Cadastra empresa e usuário |
+| `POST` | `/auth/register` | Cadastra empresa nova e seu administrador |
 | `POST` | `/auth/login` | Autentica e retorna JWT |
+| `GET` | `/auth/me` | Retorna dados e permissões atuais do usuário autenticado |
 
 ### Insumos
 
@@ -179,6 +185,8 @@ Listagem paginada:
 | --- | --- | --- |
 | `POST` | `/fichas` | Cria produto e ficha técnica |
 | `GET` | `/fichas` | Lista fichas e métricas |
+| `GET` | `/fichas/consulta` | Lista receitas sem custos, preços ou dados de compra; permitido a `admin`, `gerente`, `cozinha` e contas legadas `funcionario` |
+| `GET` | `/fichas/consulta/produto/:id` | Consulta a receita de um produto, sem custos ou dados de compra |
 | `GET` | `/fichas/produto/:id` | Busca ficha pelo produto |
 | `DELETE` | `/fichas/:id` | Exclui conjuntamente ficha e produto |
 
@@ -193,9 +201,21 @@ Listagem paginada:
 | Método | Rota | Descrição |
 | --- | --- | --- |
 | `GET` | `/usuarios` | Lista usuários da empresa |
-| `POST` | `/usuarios` | Cria usuário |
-| `PUT` | `/usuarios/:id` | Atualiza nome ou cargo |
-| `DELETE` | `/usuarios/:id` | Exclui usuário |
+| `GET` | `/usuarios/cargos` | Lista os cargos que o usuário atual pode atribuir |
+| `POST` | `/usuarios` | Cria funcionário com cargo explícito |
+| `PUT` | `/usuarios/:id` | Atualiza nome, cargo ou `ativo` |
+| `DELETE` | `/usuarios/:id` | Desativa usuário sem apagar o histórico |
+
+Exemplo de cadastro por um administrador autenticado:
+
+```json
+{
+  "nome": "Maria",
+  "email": "maria@exemplo.com",
+  "senha": "1234",
+  "cargo": "caixa"
+}
+```
 
 ## Paginação e filtros
 

@@ -1,12 +1,13 @@
 import AppError from "#shared/errors/AppError.js";
+import { temPermissao } from "#shared/auth/permissoes.js";
 
-const authorize = (...cargosPermitidos) => {
+const authorize = (permissao) => {
     return (req, res, next) => {
         if (!req.usuario) {
             throw new AppError("Usuário não autenticado", 401);
         }
 
-        const autorizado = cargosPermitidos.includes(req.usuario.cargo);
+        const autorizado = temPermissao(req.usuario.cargo, permissao);
 
         if (!autorizado) {
             throw new AppError("Acesso negado", 403);

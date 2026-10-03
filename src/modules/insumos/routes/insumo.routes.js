@@ -17,14 +17,14 @@ import authorize from "#shared/middlewares/authorize.middleware.js";
 const router = express.Router();
 router.use(authMiddleware);
 
-router.post("/", authorize("admin"), asyncHandler(criarInsumo));
+router.post("/", authorize("cmv:gerir"), asyncHandler(criarInsumo));
 
-router.post("/com-ficha", authorize("admin"), asyncHandler(criarInsumoComFicha));
+router.post("/com-ficha", authorize("cmv:gerir"), asyncHandler(criarInsumoComFicha));
 
-router.get("/", asyncHandler(listarInsumos));
+router.get("/", authorize("cmv:ler"), asyncHandler(listarInsumos));
 
-router.put("/:id", authorize("admin"), asyncHandler(atualizarInsumo));
+router.put("/:id", authorize("cmv:gerir"), asyncHandler(atualizarInsumo));
 
-router.delete("/:id", authorize("admin"), asyncHandler(deletarInsumo));
+router.delete("/:id", authorize("cmv:gerir"), asyncHandler(deletarInsumo));
 
 export default router;
